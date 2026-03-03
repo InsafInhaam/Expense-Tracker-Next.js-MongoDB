@@ -31,8 +31,8 @@ export default function FloatingActionButton({
           d="M12 6v12m6-6H6"
         />
       ),
-      x: -8,
-      y: -108,
+      x: 0,
+      y: -110,
     },
     {
       id: "voice",
@@ -47,8 +47,8 @@ export default function FloatingActionButton({
           d="M19 11a7 7 0 01-14 0m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
         />
       ),
-      x: -68,
-      y: -88,
+      x: -78,
+      y: -78,
     },
     {
       id: "receipt",
@@ -63,8 +63,8 @@ export default function FloatingActionButton({
           d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
         />
       ),
-      x: -112,
-      y: -48,
+      x: -110,
+      y: 0,
     },
     {
       id: "email",
@@ -79,8 +79,8 @@ export default function FloatingActionButton({
           d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8m-2 10H5a2 2 0 01-2-2V8a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2z"
         />
       ),
-      x: -126,
-      y: 12,
+      x: -78,
+      y: 78,
     },
   ] as const;
 
@@ -90,7 +90,7 @@ export default function FloatingActionButton({
   };
 
   return (
-    <div className="fixed bottom-8 right-8 z-50">
+    <div className="fixed bottom-20 right-8 z-50">
       {isOpen && (
         <button
           type="button"
