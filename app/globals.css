@@ -1,24 +1,222 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* Apple Design System - Custom Theme */
+@theme {
+  /* Apple Gray Scale */
+  --color-apple-gray-50: #fafafa;
+  --color-apple-gray-100: #f5f5f5;
+  --color-apple-gray-200: #e5e5e5;
+  --color-apple-gray-300: #d4d4d4;
+  --color-apple-gray-400: #a3a3a3;
+  --color-apple-gray-500: #737373;
+  --color-apple-gray-600: #525252;
+  --color-apple-gray-700: #404040;
+  --color-apple-gray-800: #262626;
+  --color-apple-gray-900: #171717;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  /* Custom Border Radius */
+  --radius-xl: 0.75rem;
+  --radius-2xl: 1rem;
+  --radius-3xl: 1.5rem;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  /* Custom Shadows */
+  --shadow-soft: 0 2px 8px rgb(0 0 0 / 0.04), 0 1px 2px rgb(0 0 0 / 0.06);
+  --shadow-card: 0 4px 16px rgb(0 0 0 / 0.06), 0 2px 4px rgb(0 0 0 / 0.04);
+  --shadow-card-hover:
+    0 10px 24px rgb(0 0 0 / 0.08), 0 4px 10px rgb(0 0 0 / 0.05);
+
+  /* Custom Animations */
+  --animate-fade-in: fadeIn 0.24s ease-in-out;
+  --animate-slide-up: slideUp 0.26s ease-in-out;
+  --animate-page-enter: pageEnter 0.26s ease-in-out;
+  --animate-modal-enter: modalEnter 0.24s ease-in-out;
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes slideUp {
+    from {
+      transform: translateY(8px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes pageEnter {
+    from {
+      transform: translateY(6px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes modalEnter {
+    from {
+      transform: translateY(10px) scale(0.995);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0) scale(1);
+      opacity: 1;
+    }
   }
 }
 
-body {
-  font-family: Arial, Helvetica, sans-serif;
+/* Apple-inspired smooth scroll */
+@layer base {
+  * {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    font-family:
+      var(--font-geist-sans),
+      system-ui,
+      -apple-system,
+      sans-serif;
+    color: #171717;
+    background: #ffffff;
+    font-feature-settings: "cv11", "ss01";
+    font-variation-settings: "opsz" auto;
+  }
+
+  input,
+  textarea,
+  select {
+    font-size: 16px; /* Prevents iOS zoom on focus */
+  }
+}
+
+/* Custom scrollbar for webkit browsers */
+@layer utilities {
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* iOS-like tap highlight */
+  * {
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0.05);
+  }
+
+  /* Safe area padding for iOS */
+  .safe-area-inset {
+    padding-top: env(safe-area-inset-top);
+    padding-right: env(safe-area-inset-right);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+  }
+}
+
+/* Custom animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Smooth transitions for interactive elements */
+button,
+a,
+input,
+select,
+textarea {
+  transition-property:
+    color, background-color, border-color, box-shadow, transform, opacity;
+  transition-duration: 240ms;
+  transition-timing-function: ease-in-out;
+}
+
+.page-transition {
+  animation: var(--animate-page-enter);
+}
+
+.modal-backdrop {
+  animation: var(--animate-fade-in);
+}
+
+.modal-panel {
+  animation: var(--animate-modal-enter);
+}
+
+.premium-card {
+  transition-property: transform, box-shadow;
+  transition-duration: 240ms;
+  transition-timing-function: ease-in-out;
+}
+
+.premium-card:hover {
+  transform: scale(1.02);
+  box-shadow: var(--shadow-card-hover);
+}
+
+.premium-card:active {
+  transform: scale(1.01);
+}
+
+.premium-button {
+  transition-property:
+    transform, box-shadow, background-color, color, border-color, opacity;
+  transition-duration: 220ms;
+  transition-timing-function: ease-in-out;
+}
+
+.premium-button:active {
+  transform: scale(0.98);
+}
+
+button:not(:disabled):active {
+  transform: scale(0.985);
+}
+
+.fab-tap {
+  transition-property: transform, box-shadow, background-color;
+  transition-duration: 240ms;
+  transition-timing-function: ease-in-out;
+}
+
+.fab-tap:active {
+  transform: scale(0.95);
+}
+
+/* Focus styles */
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
 }
