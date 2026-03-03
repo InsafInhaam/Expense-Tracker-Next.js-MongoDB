@@ -216,9 +216,7 @@ export default function Dashboard() {
       {/* Header */}
       <header className="px-6 pt-12 pb-8">
         <div className="flex items-center justify-between mb-2">
-          <h1 className="text-3xl font-semibold text-apple-gray-900">
-            Finance
-          </h1>
+          <h1 className="text-3xl font-semibold text-apple-gray-900">Lume</h1>
           <button
             onClick={() => signOut({ callbackUrl: "/auth/signin" })}
             className="text-apple-gray-500 hover:text-apple-gray-700 text-sm font-medium transition-colors"

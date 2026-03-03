@@ -1,4 +1,4 @@
-const CACHE_NAME = "finance-app-v1";
+const CACHE_NAME = "lume-app-v1";
 const urlsToCache = ["/", "/dashboard", "/auth/signin", "/manifest.json"];
 
 // Install event - cache resources

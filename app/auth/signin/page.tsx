@@ -24,7 +24,7 @@ export default function SignIn() {
             </svg>
           </div>
           <h1 className="text-4xl font-semibold text-apple-gray-900 mb-3">
-            Finance
+            Lume
           </h1>
           <p className="text-apple-gray-500 text-lg">
             Simple, beautiful money tracking

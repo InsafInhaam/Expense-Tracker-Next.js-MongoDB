@@ -10,14 +10,14 @@ const geistSans = Geist({
 });
 
 export const metadata: Metadata = {
-  title: "Finance - Simple Money Tracking",
+  title: "Lume - Simple Money Tracking",
   description: "Beautiful, minimal finance tracker with a native iOS feel",
   manifest: "/manifest.json",
   themeColor: "#ffffff",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Finance",
+    title: "Lume",
   },
   viewport: {
     width: "device-width",

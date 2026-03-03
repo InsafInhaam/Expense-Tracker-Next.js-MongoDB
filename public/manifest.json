@@ -1,6 +1,6 @@
 {
-  "name": "Finance",
-  "short_name": "Finance",
+  "name": "Lume",
+  "short_name": "Lume",
   "description": "Simple, beautiful money tracking with a native iOS feel",
   "start_url": "/dashboard",
   "display": "standalone",
