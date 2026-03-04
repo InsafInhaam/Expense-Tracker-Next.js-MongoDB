@@ -12,6 +12,8 @@ export default function ProfilePage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [updatingCurrency, setUpdatingCurrency] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -23,7 +25,10 @@ export default function ProfilePage() {
 
   const fetchUserProfile = async () => {
     try {
-      const res = await fetch("/api/profile");
+      // Add cache busting
+      const res = await fetch(`/api/profile?t=${Date.now()}`, {
+        cache: "no-store",
+      });
       if (res.ok) {
         const data = await res.json();
         setUser(data);
@@ -56,17 +61,36 @@ export default function ProfilePage() {
   };
 
   const handleCurrencyChange = async (newCurrency: string) => {
+    setUpdatingCurrency(true);
+    setSuccessMessage("");
+
     try {
       const res = await fetch("/api/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ currency: newCurrency }),
+        cache: "no-store",
       });
-      if (res.ok) {
-        setUser({ ...user, currency: newCurrency });
+
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        // Update the user state with the response from server
+        setUser({
+          ...user,
+          currency: data.currency || newCurrency,
+        });
+        setSuccessMessage(`✓ Currency changed to ${data.currency}`);
+        setTimeout(() => setSuccessMessage(""), 3000);
+      } else {
+        console.error("Failed to update currency:", data);
+        alert(data.error || "Failed to update currency. Please try again.");
       }
     } catch (error) {
       console.error("Failed to update currency:", error);
+      alert("An error occurred while updating currency.");
+    } finally {
+      setUpdatingCurrency(false);
     }
   };
 
@@ -156,17 +180,30 @@ export default function ProfilePage() {
             <label className="text-xs font-semibold text-apple-gray-900">
               Default Currency
             </label>
-            <select
-              value={user.currency || "USD"}
-              onChange={(e) => handleCurrencyChange(e.target.value)}
-              className="w-full px-3 py-2 bg-apple-gray-50 border border-apple-gray-200 rounded-lg text-sm text-apple-gray-900 hover:bg-apple-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
-            >
-              {getCurrencyOptions().map((currency) => (
-                <option key={currency.code} value={currency.code}>
-                  {currency.symbol} {currency.name}
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                value={user.currency || "USD"}
+                onChange={(e) => handleCurrencyChange(e.target.value)}
+                disabled={updatingCurrency}
+                className="w-full px-3 py-2 bg-apple-gray-50 border border-apple-gray-200 rounded-lg text-sm text-apple-gray-900 hover:bg-apple-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {getCurrencyOptions().map((currency) => (
+                  <option key={currency.code} value={currency.code}>
+                    {currency.symbol} {currency.name}
+                  </option>
+                ))}
+              </select>
+              {updatingCurrency && (
+                <div className="absolute right-3 top-2.5">
+                  <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
+            </div>
+            {successMessage && (
+              <div className="text-xs text-green-600 font-medium animate-fade-in">
+                {successMessage}
+              </div>
+            )}
           </div>
         </div>
 
