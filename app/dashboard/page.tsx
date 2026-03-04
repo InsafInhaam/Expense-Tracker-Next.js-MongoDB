@@ -2,6 +2,7 @@
 
 import { useSession, signOut } from "next-auth/react";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import BalanceCard from "@/components/BalanceCard";
 import FloatingActionButton from "@/components/FloatingActionButton";
@@ -217,12 +218,20 @@ export default function Dashboard() {
       <header className="px-6 pt-12 pb-8">
         <div className="flex items-center justify-between mb-2">
           <h1 className="text-3xl font-semibold text-apple-gray-900">Lume</h1>
-          <button
-            onClick={() => signOut({ callbackUrl: "/auth/signin" })}
-            className="text-apple-gray-500 hover:text-apple-gray-700 text-sm font-medium transition-colors"
-          >
-            Sign out
-          </button>
+          <div className="flex items-center gap-4">
+            <Link
+              href="/profile"
+              className="text-apple-gray-500 hover:text-apple-gray-900 text-sm font-medium transition-colors"
+            >
+              Profile
+            </Link>
+            <button
+              onClick={() => signOut({ callbackUrl: "/auth/signin" })}
+              className="text-apple-gray-500 hover:text-apple-gray-700 text-sm font-medium transition-colors"
+            >
+              Sign out
+            </button>
+          </div>
         </div>
         {session?.user?.name && (
           <p className="text-apple-gray-500">

@@ -4,6 +4,93 @@ import { authOptions } from "@/lib/auth";
 import connectToDatabase from "@/lib/mongodb";
 import Transaction from "@/models/Transaction";
 import User from "@/models/User";
+import {
+  formatAllowedCategories,
+  resolveAllowedCategory,
+  type TransactionType,
+} from "@/lib/categories";
+
+async function classifyCategoryWithGemini(
+  type: TransactionType,
+  description: string,
+): Promise<string> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("Gemini API key not configured");
+  }
+
+  const allowedCategories = formatAllowedCategories(type);
+
+  const geminiResponse = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              {
+                text: `Classify this ${type} transaction into exactly one category from the allowed list.
+
+Allowed categories: ${allowedCategories}
+
+Transaction description: "${description}"
+
+Rules:
+- Return ONLY the exact category name from the allowed list.
+- Do not return explanations, JSON, markdown, or any additional text.
+- If uncertain, return "Other".`,
+              },
+            ],
+          },
+        ],
+        generationConfig: {
+          temperature: 0.1,
+          topK: 1,
+          topP: 1,
+          maxOutputTokens: 32,
+        },
+      }),
+    },
+  );
+
+  if (!geminiResponse.ok) {
+    throw new Error("Gemini category classification failed");
+  }
+
+  const geminiData = await geminiResponse.json();
+  const generatedText = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+  if (!generatedText) {
+    throw new Error("No category returned from Gemini");
+  }
+
+  let cleaned = generatedText
+    .replace(/```json\n?/g, "")
+    .replace(/```\n?/g, "")
+    .trim()
+    .split("\n")[0]
+    .trim();
+
+  // Remove escaped and regular quotes
+  cleaned = cleaned
+    .replace(/\\"/g, '"')
+    .replace(/^["']+|["']+$/g, "")
+    .trim();
+
+  const resolved = resolveAllowedCategory(type, cleaned);
+
+  if (!resolved) {
+    throw new Error(
+      `Gemini returned an invalid category: "${cleaned}". Allowed categories: ${allowedCategories}`,
+    );
+  }
+
+  return resolved;
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -25,10 +112,17 @@ export async function GET(request: NextRequest) {
       .lean();
 
     return NextResponse.json({ transactions });
-  } catch (error) {
-    console.error("Error fetching transactions:", error);
+  } catch (error: any) {
+    console.error("Error fetching transactions:", {
+      message: error?.message,
+      stack: error?.stack,
+      error: String(error),
+    });
     return NextResponse.json(
-      { error: "Failed to fetch transactions" },
+      {
+        error: "Failed to fetch transactions",
+        details: error?.message || error?.toString(),
+      },
       { status: 500 },
     );
   }
@@ -54,9 +148,9 @@ export async function POST(request: NextRequest) {
       body;
 
     // Validate required fields
-    if (!type || !amount || !category) {
+    if (!type || !amount) {
       return NextResponse.json(
-        { error: "Missing required fields: type, amount, category" },
+        { error: "Missing required fields: type, amount" },
         { status: 400 },
       );
     }
@@ -70,18 +164,53 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate amount
-    if (isNaN(amount) || amount <= 0) {
+    const parsedAmount = Number(amount);
+    if (Number.isNaN(parsedAmount) || parsedAmount <= 0) {
       return NextResponse.json(
         { error: "Amount must be a positive number" },
         { status: 400 },
       );
     }
 
+    let finalCategory = resolveAllowedCategory(type, category);
+
+    if (category && !finalCategory) {
+      return NextResponse.json(
+        {
+          error: `Invalid category. Allowed categories for ${type}: ${formatAllowedCategories(type)}`,
+        },
+        { status: 400 },
+      );
+    }
+
+    if (!finalCategory) {
+      const description = [
+        typeof body.description === "string" ? body.description : "",
+        typeof note === "string" ? note : "",
+        typeof merchant === "string" ? merchant : "",
+      ]
+        .map((item) => item.trim())
+        .filter(Boolean)
+        .join(" | ");
+
+      if (!description) {
+        return NextResponse.json(
+          {
+            error:
+              "Category is required unless a description/note/merchant is provided for Gemini classification.",
+          },
+          { status: 400 },
+        );
+      }
+
+      finalCategory = await classifyCategoryWithGemini(type, description);
+    }
+
     const transaction = await Transaction.create({
       userId: user._id,
       type,
-      amount: parseFloat(amount),
-      category,
+      amount: parsedAmount,
+      category: finalCategory,
       note: note || undefined,
       date: date ? new Date(date) : new Date(),
       source: source || "manual",

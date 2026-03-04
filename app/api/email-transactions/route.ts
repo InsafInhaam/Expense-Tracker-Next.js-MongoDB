@@ -160,7 +160,7 @@ export async function GET() {
     }
 
     const geminiResp = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${geminiApiKey}`,
       {
         method: "POST",
         headers: {
@@ -171,31 +171,19 @@ export async function GET() {
             {
               parts: [
                 {
-                  text: `You are extracting possible financial transactions from email content.
+                  text: `You are extracting financial transactions from email content. Return ONLY valid JSON (no markdown, no pretty-printing, compact single-line format).
 
-Return ONLY valid JSON (no markdown), with this exact shape:
-{
-  "transactions": [
-    {
-      "emailId": "string",
-      "type": "income" | "expense",
-      "amount": number,
-      "category": "Salary|Freelance|Investment|Business|Gift|Refund|Other|Food & Dining|Transport|Shopping|Bills & Utilities|Entertainment|Healthcare|Education|Groceries|Other",
-      "date": "YYYY-MM-DD",
-      "merchant": "string",
-      "note": "string",
-      "confidence": number
-    }
-  ]
-}
+Required JSON shape:
+{"transactions":[{"emailId":"id","type":"income"|"expense","amount":number,"category":"Category","date":"YYYY-MM-DD","merchant":"name","note":"text","confidence":0.75}]}
 
 Rules:
-- Only include entries that look like real completed transactions.
-- confidence is 0..1.
-- If amount is missing or uncertain, skip that entry.
-- Use closest category from the allowed list.
-- date should come from transaction context; fallback to email date.
-- note should be short and useful.
+- Only include real completed transactions.
+- confidence is 0..1 (typical: 0.5-0.9).
+- If amount missing/uncertain, skip entry.
+- Categories: Salary, Freelance, Investment, Business, Gift, Refund, Other (income) OR Food & Dining, Transport, Shopping, Bills & Utilities, Entertainment, Healthcare, Education, Groceries, Other (expense)
+- date from transaction; fallback to email date.
+- note: concise summary.
+- Return ONLY valid JSON, NO additional text, NO code blocks, NOT pretty-printed.
 
 Emails:
 ${JSON.stringify(usableEmails)}`,
@@ -205,8 +193,8 @@ ${JSON.stringify(usableEmails)}`,
           ],
           generationConfig: {
             temperature: 0.1,
-            topK: 1,
-            topP: 1,
+            topK: 40,
+            topP: 0.95,
             maxOutputTokens: 2048,
           },
         }),
@@ -228,7 +216,43 @@ ${JSON.stringify(usableEmails)}`,
       return NextResponse.json({ detectedTransactions: [] });
     }
 
-    const parsed = JSON.parse(cleanJsonString(rawText));
+    // Parse JSON with robust error handling
+    let parsed;
+    let cleanedRaw = cleanJsonString(rawText);
+
+    // Remove escaped quotes if present
+    if (cleanedRaw.startsWith('"') && cleanedRaw.endsWith('"')) {
+      cleanedRaw = cleanedRaw.slice(1, -1);
+    }
+    cleanedRaw = cleanedRaw.replace(/\\"/g, '"');
+
+    try {
+      parsed = JSON.parse(cleanedRaw);
+    } catch (parseError) {
+      // Try to extract JSON object from the text
+      let jsonMatch = cleanedRaw.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        try {
+          parsed = JSON.parse(jsonMatch[0]);
+        } catch {
+          // Try unescaping
+          let unescaped = jsonMatch[0].replace(/\\"/g, '"');
+          try {
+            parsed = JSON.parse(unescaped);
+          } catch {
+            console.error(
+              "Email transaction JSON parsing failed:",
+              cleanedRaw.substring(0, 300),
+            );
+            // Return empty array on parse failure
+            return NextResponse.json({ detectedTransactions: [] });
+          }
+        }
+      } else {
+        return NextResponse.json({ detectedTransactions: [] });
+      }
+    }
+
     const transactions = Array.isArray(parsed?.transactions)
       ? parsed.transactions
       : [];

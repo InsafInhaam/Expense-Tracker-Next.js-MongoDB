@@ -37,10 +37,17 @@ export async function GET(request: NextRequest) {
       income,
       expenses,
     });
-  } catch (error) {
-    console.error("Error fetching summary:", error);
+  } catch (error: any) {
+    console.error("Error fetching summary:", {
+      message: error?.message,
+      stack: error?.stack,
+      error: String(error),
+    });
     return NextResponse.json(
-      { error: "Failed to fetch summary" },
+      {
+        error: "Failed to fetch summary",
+        details: error?.message || error?.toString(),
+      },
       { status: 500 },
     );
   }

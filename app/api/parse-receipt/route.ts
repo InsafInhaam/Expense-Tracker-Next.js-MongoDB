@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import {
+  EXPENSE_CATEGORIES,
+  INCOME_CATEGORIES,
+  resolveAllowedCategory,
+} from "@/lib/categories";
 
 export async function POST(request: Request) {
   try {
@@ -26,7 +31,7 @@ export async function POST(request: Request) {
 
     // Call Gemini Vision API
     const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`,
       {
         method: "POST",
         headers: {
@@ -37,28 +42,22 @@ export async function POST(request: Request) {
             {
               parts: [
                 {
-                  text: `Analyze this receipt image and extract transaction information. Return ONLY a valid JSON object with no additional text or markdown formatting.
+                  text: `Analyze this receipt image and extract transaction information. Return ONLY a valid JSON object with NO additional text, NO markdown, NO code blocks, and NO pretty-printing.
 
-Categories for expense: Food & Dining, Transport, Shopping, Bills & Utilities, Entertainment, Healthcare, Education, Groceries, Other
-Categories for income: Salary, Freelance, Investment, Business, Gift, Refund, Other
+Categories for expense: ${EXPENSE_CATEGORIES.join(", ")}
+Categories for income: ${INCOME_CATEGORIES.join(", ")}
 
 Rules:
-- Extract the total amount (just the number, no currency symbols)
+- Extract the total amount (just the number, no currency symbols, no non-numeric except decimal point)
 - Identify the merchant/vendor name
 - Extract the date (return in YYYY-MM-DD format, if not visible use today's date)
 - Determine transaction type (receipts are usually "expense", but check context)
 - Suggest the most appropriate category from the lists above
 - Add any relevant notes (items purchased, additional context)
+- Return ONLY valid JSON on a single line
 
-Return ONLY this JSON structure (no markdown, no code blocks):
-{
-  "type": "expense",
-  "amount": number,
-  "category": "exact category name from the list",
-  "merchant": "merchant/vendor name",
-  "date": "YYYY-MM-DD",
-  "note": "relevant details from receipt"
-}`,
+Return ONLY this exact JSON format (compact, single line):
+{"type":"expense"|"income","amount":number,"category":"exact category name","merchant":"vendor name","date":"YYYY-MM-DD","note":"details"}`,
                 },
                 {
                   inline_data: {
@@ -71,8 +70,8 @@ Return ONLY this JSON structure (no markdown, no code blocks):
           ],
           generationConfig: {
             temperature: 0.1,
-            topK: 1,
-            topP: 1,
+            topK: 40,
+            topP: 0.95,
             maxOutputTokens: 512,
           },
         }),
@@ -94,12 +93,57 @@ Return ONLY this JSON structure (no markdown, no code blocks):
 
     // Clean up response - remove markdown code blocks if present
     let cleanedText = generatedText.trim();
+
+    // Remove escaped quotes if present (e.g., from JSON-in-JSON responses)
+    if (cleanedText.startsWith('"') && cleanedText.endsWith('"')) {
+      cleanedText = cleanedText.slice(1, -1);
+    }
+    cleanedText = cleanedText.replace(/\\"/g, '"');
+
     cleanedText = cleanedText.replace(/```json\n?/g, "");
     cleanedText = cleanedText.replace(/```\n?/g, "");
     cleanedText = cleanedText.trim();
 
-    // Parse the JSON response
-    const parsed = JSON.parse(cleanedText);
+    // Try to extract JSON if it's embedded in other text
+    let parsed;
+    try {
+      parsed = JSON.parse(cleanedText);
+    } catch (parseError) {
+      // Try to extract JSON object from the text - handle prettified JSON
+      let jsonMatch = cleanedText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        try {
+          parsed = JSON.parse(jsonMatch[0]);
+        } catch (extractError) {
+          console.error("JSON parsing failed:", {
+            input: cleanedText.substring(0, 500),
+            error:
+              extractError instanceof Error
+                ? extractError.message
+                : String(extractError),
+          });
+          // Try to find and fix common issues
+          let fixedJson = jsonMatch[0];
+          // Remove trailing commas
+          fixedJson = fixedJson.replace(/,\s*\}/g, "}").replace(/,\s*\]/g, "]");
+          try {
+            parsed = JSON.parse(fixedJson);
+          } catch {
+            throw new Error(
+              `Failed to parse JSON from Gemini response. Original: ${cleanedText.substring(0, 200)}`,
+            );
+          }
+        }
+      } else {
+        console.error(
+          "No JSON found in response:",
+          cleanedText.substring(0, 300),
+        );
+        throw new Error(
+          `Gemini did not return valid JSON. Response: ${cleanedText.substring(0, 150)}`,
+        );
+      }
+    }
 
     // Validate required fields
     if (!parsed.amount || !parsed.category || !parsed.date) {
@@ -119,6 +163,20 @@ Return ONLY this JSON structure (no markdown, no code blocks):
       throw new Error("Invalid amount");
     }
 
+    const resolvedCategory = resolveAllowedCategory(
+      parsed.type,
+      parsed.category,
+    );
+    if (!resolvedCategory) {
+      throw new Error(
+        `Invalid category. Allowed categories for ${parsed.type}: ${
+          parsed.type === "income"
+            ? INCOME_CATEGORIES.join(", ")
+            : EXPENSE_CATEGORIES.join(", ")
+        }`,
+      );
+    }
+
     // Validate date format
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
     if (!dateRegex.test(parsed.date)) {
@@ -131,7 +189,7 @@ Return ONLY this JSON structure (no markdown, no code blocks):
       data: {
         type: parsed.type,
         amount: parsed.amount,
-        category: parsed.category,
+        category: resolvedCategory,
         merchant: parsed.merchant || "Unknown",
         date: parsed.date,
         note: parsed.note || "",

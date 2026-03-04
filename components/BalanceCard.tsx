@@ -49,7 +49,7 @@ export default function BalanceCard({
       className={`${getVariantStyles()} premium-card rounded-2xl p-6 shadow-card`}
     >
       <p className={`text-sm font-medium mb-2 ${getTitleColor()}`}>{title}</p>
-      <p className={`text-3xl font-semibold ${getAmountColor()}`}>
+      <p className={`text-2xl font-semibold break-words ${getAmountColor()}`}>
         {formatCurrency(amount)}
       </p>
     </div>
