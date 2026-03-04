@@ -11,6 +11,14 @@ export interface IAIUsage {
   lastRequestTime: Date;
 }
 
+export interface IGmailSyncState {
+  lastSyncAt?: Date;
+  processedMessageIds: string[]; // Gmail message IDs to prevent duplicates
+  totalEmailsProcessed: number;
+  lastSyncStatus?: "success" | "error" | "in-progress";
+  lastSyncError?: string;
+}
+
 export interface IUser {
   name: string;
   email: string;
@@ -19,6 +27,10 @@ export interface IUser {
   plan: UserPlan;
   gmailConnected: boolean;
   gmailEmail?: string;
+  gmailAccessToken?: string; // Encrypted OAuth access token
+  gmailRefreshToken?: string; // Encrypted OAuth refresh token
+  gmailTokenExpiry?: Date;
+  gmailSyncState: IGmailSyncState;
   aiUsage: IAIUsage;
   currency: string; // e.g., "USD", "LKR", "GBP", "EUR"
   createdAt: Date;
@@ -37,6 +49,20 @@ const AIUsageSchema = new Schema<IAIUsage>(
   { _id: false },
 );
 
+const GmailSyncStateSchema = new Schema<IGmailSyncState>(
+  {
+    lastSyncAt: { type: Date },
+    processedMessageIds: { type: [String], default: [] },
+    totalEmailsProcessed: { type: Number, default: 0 },
+    lastSyncStatus: {
+      type: String,
+      enum: ["success", "error", "in-progress"],
+    },
+    lastSyncError: { type: String },
+  },
+  { _id: false },
+);
+
 const UserSchema = new Schema<IUser>(
   {
     name: { type: String, required: true },
@@ -46,6 +72,10 @@ const UserSchema = new Schema<IUser>(
     plan: { type: String, enum: ["FREE", "PREMIUM"], default: "FREE" },
     gmailConnected: { type: Boolean, default: false },
     gmailEmail: { type: String },
+    gmailAccessToken: { type: String, select: false }, // Encrypted, not returned by default
+    gmailRefreshToken: { type: String, select: false }, // Encrypted, not returned by default
+    gmailTokenExpiry: { type: Date },
+    gmailSyncState: { type: GmailSyncStateSchema, default: () => ({}) },
     currency: { type: String, default: "USD" },
     aiUsage: { type: AIUsageSchema, default: () => ({}) },
   },

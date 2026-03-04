@@ -9,6 +9,8 @@
     "type-check": "tsc"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "googleapis": "^171.4.0",
     "mongoose": "^8.19.1",
     "next": "16.1.6",
     "next-auth": "^4.24.7",

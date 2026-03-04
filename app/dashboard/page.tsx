@@ -39,6 +39,7 @@ export default function Dashboard() {
     expenses: 0,
   });
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [userCurrency, setUserCurrency] = useState<string>("USD");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
@@ -57,10 +58,25 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (status === "authenticated") {
+      fetchUserCurrency();
       fetchSummary();
       fetchTransactions();
     }
   }, [status]);
+
+  const fetchUserCurrency = async () => {
+    try {
+      const response = await fetch(`/api/profile?t=${Date.now()}`, {
+        cache: "no-store",
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setUserCurrency(data.currency || "USD");
+      }
+    } catch (error) {
+      console.error("Error fetching user currency:", error);
+    }
+  };
 
   const fetchSummary = async () => {
     try {
@@ -247,6 +263,7 @@ export default function Dashboard() {
           title="Total Balance"
           amount={summary.balance}
           variant="primary"
+          currency={userCurrency}
         />
 
         {/* Income & Expenses Grid */}
@@ -255,11 +272,13 @@ export default function Dashboard() {
             title="Income"
             amount={summary.income}
             variant="income"
+            currency={userCurrency}
           />
           <BalanceCard
             title="Expenses"
             amount={summary.expenses}
             variant="expense"
+            currency={userCurrency}
           />
         </div>
 
@@ -293,7 +312,7 @@ export default function Dashboard() {
           )}
 
         {/* Recent Transactions */}
-        <TransactionList transactions={transactions} />
+        <TransactionList transactions={transactions} currency={userCurrency} />
       </main>
 
       {/* Success Toast */}

@@ -12,10 +12,12 @@ interface Transaction {
 
 interface TransactionListProps {
   transactions: Transaction[];
+  currency?: string;
 }
 
 export default function TransactionList({
   transactions,
+  currency = "USD",
 }: TransactionListProps) {
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -40,7 +42,7 @@ export default function TransactionList({
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
-      currency: "USD",
+      currency: currency,
       minimumFractionDigits: 2,
     }).format(value);
   };

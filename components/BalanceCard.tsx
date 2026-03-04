@@ -4,17 +4,19 @@ interface BalanceCardProps {
   title: string;
   amount: number;
   variant?: "primary" | "income" | "expense";
+  currency?: string;
 }
 
 export default function BalanceCard({
   title,
   amount,
   variant = "primary",
+  currency = "USD",
 }: BalanceCardProps) {
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
-      currency: "USD",
+      currency: currency,
       minimumFractionDigits: 2,
     }).format(value);
   };

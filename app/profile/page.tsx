@@ -14,6 +14,8 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [updatingCurrency, setUpdatingCurrency] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
+  const [syncing, setSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState("");
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -43,6 +45,20 @@ export default function ProfilePage() {
   const upgradeToPremium = async () => {
     // TODO: Implement Stripe/payment integration
     alert("Premium upgrade coming soon!");
+  };
+
+  const connectGmail = async () => {
+    try {
+      const res = await fetch("/api/gmail/connect");
+      if (res.ok) {
+        const data = await res.json();
+        // Redirect to Google OAuth
+        window.location.href = data.authUrl;
+      }
+    } catch (error) {
+      console.error("Failed to connect Gmail:", error);
+      alert("Failed to initiate Gmail connection. Please try again.");
+    }
   };
 
   const disconnectGmail = async () => {
@@ -91,6 +107,36 @@ export default function ProfilePage() {
       alert("An error occurred while updating currency.");
     } finally {
       setUpdatingCurrency(false);
+    }
+  };
+
+  // TODO: Comment this out for production - for testing only
+  const triggerGmailSync = async () => {
+    setSyncing(true);
+    setSyncMessage("");
+
+    try {
+      const res = await fetch("/api/gmail/sync-now", {
+        method: "POST",
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        setSyncMessage(
+          `✓ Sync complete! Processed: ${data.results.emailsProcessed}, Saved: ${data.results.transactionsSaved}, Subscriptions: ${data.results.subscriptionsDetected}`,
+        );
+        setTimeout(() => setSyncMessage(""), 5000);
+      } else {
+        setSyncMessage(`❌ Sync failed: ${data.error || "Unknown error"}`);
+        setTimeout(() => setSyncMessage(""), 5000);
+      }
+    } catch (error) {
+      console.error("Sync failed:", error);
+      setSyncMessage("❌ An error occurred during sync");
+      setTimeout(() => setSyncMessage(""), 5000);
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -302,21 +348,74 @@ export default function ProfilePage() {
                 📧
               </div>
               <div>
-                <p className="text-sm font-medium text-apple-gray-900">Gmail</p>
+                <p className="text-sm font-medium text-apple-gray-900">
+                  Gmail Auto-Sync
+                </p>
                 <p className="text-xs text-apple-gray-600">
                   {user.gmailConnected
                     ? `Connected to ${user.gmailEmail}`
-                    : "Not connected"}
+                    : "Automatically detect bills & subscriptions"}
                 </p>
               </div>
             </div>
-            {user.gmailConnected && (
-              <span className="px-2.5 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-full">
-                Connected
-              </span>
+            {user.gmailConnected ? (
+              <button
+                onClick={disconnectGmail}
+                className="px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
+              >
+                Disconnect
+              </button>
+            ) : (
+              <button
+                onClick={connectGmail}
+                className="px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+              >
+                Connect
+              </button>
             )}
           </div>
         </div>
+
+        {/* Manual Gmail Sync - FOR TESTING ONLY */}
+        {user.gmailConnected && (
+          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6 shadow-sm">
+            <div className="flex items-start justify-between mb-2">
+              <div>
+                <h3 className="text-sm font-semibold text-blue-900">
+                  📊 Test Gmail Sync
+                </h3>
+                <p className="text-xs text-blue-700 mt-1">
+                  Manually trigger email sync to test subscription detection
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={triggerGmailSync}
+              disabled={syncing}
+              className="mt-4 w-full px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed rounded-lg transition-colors flex items-center justify-center gap-2"
+            >
+              {syncing ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Syncing...
+                </>
+              ) : (
+                "▶ Trigger Sync Now"
+              )}
+            </button>
+            {syncMessage && (
+              <div
+                className={`text-xs mt-3 p-3 rounded-lg ${
+                  syncMessage.includes("✓")
+                    ? "bg-green-100 text-green-800"
+                    : "bg-red-100 text-red-800"
+                }`}
+              >
+                {syncMessage}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Plan Features */}
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-apple-gray-100">
